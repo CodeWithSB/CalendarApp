@@ -1,4 +1,183 @@
 ﻿@page "/"
 
-<h1 class="text-green-500 text-2xl">Hello, world!</h1>
+<div class="text-3xl flex justify-between items-center font-semibold bg-blue-500 p-6 text-white animate-fade-in">
+    <h1 class="text-3xl"> Calendar </h1>
+    <div>
+        <select @bind="selectedDisplayType" class="inline text-lg text-black outline-none rounded-sm text-sm px-2 mx-6 w-52">
+            @foreach (var mode in Enum.GetValues(typeof(EventsDisplayMode)))
+            {
+                <option value="@mode">@mode</option>
+            }
+        </select>
+        <button class="inline text-sm rounded-full py-2 px-3 justify-center items-center font-bold text-white bg-blue-600 hover:shadow-xl" @onclick="MoveToPreviousMonth"> &lt; </button>
+        <input class="inline text-lg text-black outline-none rounded-sm text-sm px-2 w-52" type="month" name="weekName" id="weekID" value=@(year + "-" + Convert.ToString(month).PadLeft(2,'0')) @oninput="(e) => monthChanged(e)" />
+        <button class="inline text-sm rounded-full py-2 px-3 justify-center items-center font-bold text-white bg-blue-600 hover:shadow-xl" @onclick="MoveToNextMonth"> &gt; </button>
+    </div>
+</div>
+<div class="w-full grid grid-cols-7 gap-0.5 my-0.5">
+    <div class="w-full h-12 bg-gray-700 text-white dark:bg-gray-400 dark:text-black font-bold p-3 text-left text-xs md:text-center md:text-base"> Monday </div>
+    <div class="w-full h-12 bg-gray-700 text-white dark:bg-gray-400 dark:text-black font-bold p-3 text-left text-xs md:text-center md:text-base"> Tuesday </div>
+    <div class="w-full h-12 bg-gray-700 text-white dark:bg-gray-400 dark:text-black font-bold p-3 text-left text-xs md:text-center md:text-base"> Wednesday </div>
+    <div class="w-full h-12 bg-gray-700 text-white dark:bg-gray-400 dark:text-black font-bold p-3 text-left text-xs md:text-center md:text-base"> Thursday </div>
+    <div class="w-full h-12 bg-gray-700 text-white dark:bg-gray-400 dark:text-black font-bold p-3 text-left text-xs md:text-center md:text-base"> Friday </div>
+    <div class="w-full h-12 bg-gray-700 text-white dark:bg-gray-400 dark:text-black font-bold p-3 text-left text-xs md:text-center md:text-base"> Saturday </div>
+    <div class="w-full h-12 bg-gray-700 text-white dark:bg-gray-400 dark:text-black font-bold p-3 text-left text-xs md:text-center md:text-base"> Sunday </div> 
+</div>
+<div class="w-full grid grid-cols-7 gap-0.5">
+    @for(int num=1; num<= DateTime.DaysInMonth(year, month); num++){
+        var dayInLoop = num;
+        var dateInLoop = (new DateTime(year, month, dayInLoop)).Date;
+        var eventsOnSelectedDay = EventList.Where(p=>p.EventInLocal.Date == dateInLoop).OrderBy(p=>p.EventInLocal).ToList(); 
+        
+        <div class=@($"group min-h-160 text-white bg-black dark:bg-white dark:text-black border border-gray-600 dark:border-gray-200 shadow-lg{ (dayInLoop == 1? " col-start-" + getGridStart(): "") }")>
+            <div class="w-full min-h-20 px-1.5 bg-gray-800 dark:bg-gray-100 border-b border-gray-600 dark:border-gray-200 sticky top-0 flex justify-between">
+                <div>
+                    <p class="text-blue-500 font-bold inline">@num</p>
+                    @if(@eventsOnSelectedDay.Count() > 0){
+                        <p class="text-gray-50 dark:text-gray-700 mx-2 inline text-xs italic">EventsCount: @eventsOnSelectedDay.Count()</p>
+                    }
+                </div>
+                <p class="p-1 text-green-400 dark:text-green-400 group-hover:text-green-700 dark:group-hover:text-green-700 text-xs cursor-pointer" @onclick="() => AddNewEvent(dayInLoop, month, year)">
+                    <i class="fas fa-plus-circle"></i>
+                </p>
+            </div>
+            <div class=@($"mx-auto text-xs{ (selectedDisplayType== EventsDisplayMode.Extended? "": " h-32") } w-1/8 flex flex-col gap-0.5 p-1 overflow-y-hidden group-hover:overflow-y-auto")>
+                @foreach (var singleEvent in eventsOnSelectedDay)
+                {
+                    <div class=@($"w-full min-h-20 rounded-full {singleEvent.EventColor} text-white p-0.5 flex justify-between items-center cursor-pointer")>
+                            <p class=@($"w-24 h-full rounded-full bg-gray-800 py-0.5 px-1 bg-blend-multiply text-center") @onclick="()=> UpdateEvent(singleEvent)">
+                                @singleEvent.EventInLocal.ToShortTimeString()
+                            </p>
+                            <p class="w-full pl-2 overflow-ellipsis whitespace-nowrap overflow-hidden" @onclick="()=> UpdateEvent(singleEvent)">
+                                @singleEvent.EventDisplayFormat 
+                            </p>
+                            <div class="w-10 h-6 rounded-full bg-red-500 text-white text-center">
+                                <p class="p-1 text-xs cursor-pointer" @onclick="() => DeleteEvent(singleEvent)"><i class="fas fa-trash-alt"></i></p>
+                            </div>
+                    </div>
+                }
+            </div>
+        </div>
+    } 
+</div>
+@if(selectedComponent != null){
+    <Modal ComponentPassed = "@selectedComponent" @ref="modal"/>
+}
 
+@code{
+    private Modal modal { get; set; }
+    int month = DateTime.Now.Month;
+    int year = DateTime.Now.Year;
+    ComponentMetaData selectedComponent = null;
+
+    EventsDisplayMode selectedDisplayType = EventsDisplayMode.Extended;
+    List<CalendarEvent> EventList = new List<CalendarEvent>();
+
+    protected override void OnInitialized()
+    {
+        CalendarEvent ev = new(){
+            EventID = Guid.NewGuid(),
+            CreatedOn = DateTime.Now,
+            EventInLocal = DateTime.Now,
+            EventName = "Only Event"
+        };
+        this.AddEventToList(ev);
+    }
+
+    void AddEventToList(CalendarEvent calEvent)
+    {
+        EventList.Add(calEvent);
+        this.CloseDialog();
+    }
+
+    void UpdateEventInList(CalendarEvent calEvent)
+    {
+        EventList.Remove(EventList.Where(p=>p.EventID == calEvent.EventID).FirstOrDefault());
+        EventList.Add(calEvent);
+        this.CloseDialog();
+    }
+
+    void DeleteEventInList(Guid eventID)
+    {
+        EventList.Remove(EventList.Where(p=>p.EventID == eventID).FirstOrDefault());
+        this.CloseDialog();
+    }
+
+    void CloseDialog(){
+        if(modal != null) {
+            modal.Close();
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    void AddNewEvent(int day, int month, int year){
+        selectedComponent = new(){
+            ComponentType = Type.GetType("CalendarApp.Pages.EventForm"),
+            Parameters = new Dictionary<string, object> {
+                ["SubmitAction"] = new Action<CalendarEvent>(this.AddEventToList),
+                ["EventDate"] = new DateTime(year, month, day),
+                ["EventPassed"] = new CalendarEvent()
+            }
+        };
+        if(modal != null) {
+            modal.Open();
+        }
+    }
+
+    void UpdateEvent(CalendarEvent ev){
+        selectedComponent = new(){
+            ComponentType = Type.GetType("CalendarApp.Pages.EventForm"),
+            Parameters = new Dictionary<string, object> {
+                ["SubmitAction"] = new Action<CalendarEvent>(this.UpdateEventInList),
+                ["EventDate"] = ev.EventInLocal,
+                ["EventPassed"] = ev
+            }
+        };
+        if(modal != null) {
+            modal.Open();
+        }
+    }
+
+    void DeleteEvent(CalendarEvent ev){
+        selectedComponent = new(){
+            ComponentType = Type.GetType("CalendarApp.Pages.DeleteConfirmation"),
+            Parameters = new Dictionary<string, object> {
+                ["DeleteAction"] = new Action<Guid>(this.DeleteEventInList),
+                ["CloseAction"] = new Action(this.CloseDialog),
+                ["EventPassed"] = ev
+            }
+        };
+        if(modal != null) {
+            modal.Open();
+        }
+    }
+
+    void monthChanged(ChangeEventArgs ev){
+        Console.WriteLine(ev.Value);
+        month = Convert.ToInt32(ev.Value.ToString().Substring(5, 2));
+    }
+
+    int getGridStart(){
+        DateTime firstDayOfMonth = Convert.ToDateTime($"{month}/01/{year}");
+        return ((int)firstDayOfMonth.DayOfWeek == 0) ? 7 : (int)firstDayOfMonth.DayOfWeek;
+    }
+
+    void MoveToNextMonth(){
+        if(month == 12){
+            month = 1;
+            year++;
+        }
+        else{
+            month++;
+        }
+    }
+    void MoveToPreviousMonth(){
+        if(month == 1){
+            month = 12;
+            year--;
+        }
+        else{
+            month--;
+        }
+    }
+}

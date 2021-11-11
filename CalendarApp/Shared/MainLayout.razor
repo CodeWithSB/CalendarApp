@@ -1,5 +1,22 @@
 ﻿@inherits LayoutComponentBase
 
-<div>
-    @Body
+<div class=@($"relative{(isDarkMode==true ? " dark": "")} ")>
+    <div class="min-h-screen">@Body</div>
+    <div class="px-2 fixed bottom-10 right-10 bg-green-500 text-white rounded-full h-8 cursor-pointer flex justify-center items-center shadow-lg" @onclick="toggleDarkMode">
+        @if(isDarkMode == false){
+            <i class="fas fa-sun"></i>
+        }
+        else{
+            <i class="fas fa-moon"></i>
+        }
+        <p class="ml-2"> Move to @(isDarkMode? "Dark": "Light") Mode</p>
+    </div>
 </div>
+
+@code{
+    bool isDarkMode;
+
+    void toggleDarkMode(){
+        isDarkMode = !isDarkMode;
+    }
+}

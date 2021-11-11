@@ -1,0 +1,64 @@
+<EditForm class="p-4" Model="@EventPassed" OnValidSubmit="SubmitEvent">
+    <DataAnnotationsValidator />
+    <h3 class="text-left mb-2 text-2xl font-semibold">Event Details</h3>
+    <hr />
+
+    <div class="mt-2">
+        <label for="EventName" class="w-full m-1">Event Name</label>
+        <InputText id="EventName" class="w-full m-1 p-2 border border-gray-300 rounded-lg" @bind-Value="EventPassed.EventName" />
+        <ValidationMessage id="validationMessage" For="() => EventPassed.EventName" />
+            
+        <label for="eventName" class="w-full m-1">Event Time</label>
+        <InputText type="time" step="900" id="eventName" class="w-full m-1 p-2 border border-gray-300 rounded-lg" @bind-Value="TimeProxy"/>
+    </div>
+    <div class="flex justify-end">
+        <button type="submit" class="rounded-full my-3 px-3 py-1 bg-green-500 text-white">
+            <i class="mr-2 fas fa-check-circle"></i> Submit
+        </button>
+    </div>
+</EditForm>
+
+@code{
+    [Parameter]
+    public Action<CalendarEvent> SubmitAction { get; set; }
+
+    [Parameter]
+    public DateTime EventDate { get; set; }
+
+    [Parameter]
+    public CalendarEvent EventPassed { get; set; }
+    private TimeSpan LocalTime;
+
+    private string TimeProxy { 
+        get => LocalTime.ToString(@"hh\:mm",null);
+        set => TimeSpan.TryParse(value, out LocalTime);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if(EventPassed.CreatedOn == null){
+            LocalTime = TimeSpan.FromHours(0);
+        }
+        else{
+            LocalTime = EventPassed.EventInLocal.TimeOfDay;
+        }
+    }
+
+    void SubmitEvent(){
+        CalendarEvent ev = EventPassed;
+        ev = new(){
+            EventID = (ev.CreatedOn == null? Guid.NewGuid(): ev.EventID),
+            CreatedOn = (ev.CreatedOn == null? DateTime.Now: ev.CreatedOn),
+            EventName = EventPassed.EventName,
+            EventInLocal = new DateTime(
+                        EventDate.Year,
+                        EventDate.Month,
+                        EventDate.Day,
+                        LocalTime.Hours,
+                        LocalTime.Minutes,
+                        0
+                        )
+        };
+        SubmitAction(ev);
+    }
+}
