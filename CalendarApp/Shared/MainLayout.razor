@@ -1,7 +1,8 @@
-﻿@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase;
+@inject Blazored.LocalStorage.ILocalStorageService localStorageService;
 
-<div class=@($"relative{(isDarkMode==true ? " dark": "")} ")>
-    <div class="min-h-screen">@Body</div>
+<div class=@($"relative{((isDarkMode.HasValue && isDarkMode.Value ==true) ? " dark": "")} ")>
+    <div class="min-h-screen animate-fade-in">@Body</div>
     <div class="px-2 fixed bottom-10 right-10 bg-green-500 text-white rounded-full h-8 cursor-pointer flex justify-center items-center shadow-lg" @onclick="toggleDarkMode">
         @if(isDarkMode == false){
             <i class="fas fa-sun"></i>
@@ -9,14 +10,22 @@
         else{
             <i class="fas fa-moon"></i>
         }
-        <p class="ml-2"> Move to @(isDarkMode? "Dark": "Light") Mode</p>
+        <p class="ml-2"> Move to @((isDarkMode.HasValue && isDarkMode.Value)? "Dark": "Light") Mode</p>
     </div>
 </div>
 
 @code{
-    bool isDarkMode;
+    bool? isDarkMode;
 
-    void toggleDarkMode(){
+    protected override async Task OnInitializedAsync(){
+        isDarkMode = await localStorageService.GetItemAsync<bool?>("dark_mode");
+        if(isDarkMode is null){
+            isDarkMode = false;
+        }
+    }
+
+    async Task toggleDarkMode(){
         isDarkMode = !isDarkMode;
+        await localStorageService.SetItemAsync("dark_mode", isDarkMode);
     }
 }
